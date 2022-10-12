@@ -1,4 +1,3 @@
-from threading import local
 import pyautogui
 import time
 import random
