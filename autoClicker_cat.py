@@ -2,27 +2,59 @@ from time import sleep, time
 import random
 import logging
 import pydirectinput
+import threading
+import keyboard
 
 logging.basicConfig(level=logging.DEBUG)
+
+stop_threads = False
 
 def random_key_press():
     keys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
             'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
     key = random.choice(keys)
     pydirectinput.press(key)
-    logging.debug("Key: " + key)
+    # logging.debug(f"Thread ID: {threading.get_ident()} - Key: {key}")
 
 def run_for_duration(duration):
+    global stop_threads
     if duration == 0:
-        while True:
+        while not stop_threads:
             random_key_press()
-            sleep(0.001)  # Further reduce sleep duration to make the loop faster
+            sleep(random.uniform(0.001, 0.005))  # Adjust sleep duration to a range of 0.001 to 0.005 seconds
     else:
         end_time = time() + duration
-        while time() < end_time:
+        while time() < end_time and not stop_threads:
             random_key_press()
-            sleep(0.001)  # Further reduce sleep duration to make the loop faster
+            sleep(random.uniform(0.001, 0.005))  # Adjust sleep duration to a range of 0.001 to 0.005 seconds
+
+def start_thread(duration):
+    thread = threading.Thread(target=run_for_duration, args=(duration,))
+    thread.start()
+    return thread
+
+def start_threads(duration, num_threads):
+    threads = []
+    for _ in range(num_threads):
+        thread = threading.Thread(target=run_for_duration, args=(duration,))
+        thread.start()
+        threads.append(thread)
+    logging.debug(f"Started {num_threads} threads with run time: {'infinite' if duration == 0 else duration} seconds ...")
+    return threads
+
+def stop_all_threads():
+    global stop_threads
+    stop_threads = True
+    logging.error("\033[91mStop Hot Key Detected\033[0m")  # Log in red color
 
 # Example usage
 if __name__ == "__main__":
-    run_for_duration(0)  # Run indefinitely
+    num_threads = 2  # Customize the number of threads
+    run_time = 30  # Customize the duration of the script in seconds (0 for infinite)
+    threads = start_threads(run_time, num_threads)  # Run for seconds in multiple threads
+
+    # Set up a keyboard shortcut to stop all threads
+    keyboard.add_hotkey('esc', stop_all_threads)
+
+    for thread in threads:
+        thread.join()  # Wait for all threads to complete
