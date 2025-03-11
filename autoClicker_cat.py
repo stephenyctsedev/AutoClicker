@@ -8,12 +8,17 @@ import keyboard
 logging.basicConfig(level=logging.DEBUG)
 
 stop_threads = False
+key_press_count = 0
+lock = threading.Lock()
 
 def random_key_press():
+    global key_press_count
     keys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
             'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
     key = random.choice(keys)
     pydirectinput.press(key)
+    with lock:
+        key_press_count += 1
     # logging.debug(f"Thread ID: {threading.get_ident()} - Key: {key}")
 
 def run_for_duration(duration):
@@ -46,11 +51,12 @@ def stop_all_threads():
     global stop_threads
     stop_threads = True
     logging.error("\033[91mStop Hot Key Detected\033[0m")  # Log in red color
+    logging.info(f"Total key presses: {key_press_count}")
 
 # Example usage
 if __name__ == "__main__":
     num_threads = 2  # Customize the number of threads
-    run_time = 30  # Customize the duration of the script in seconds (0 for infinite)
+    run_time = 0  # Customize the duration of the script in seconds (0 for infinite)
     threads = start_threads(run_time, num_threads)  # Run for seconds in multiple threads
 
     # Set up a keyboard shortcut to stop all threads
