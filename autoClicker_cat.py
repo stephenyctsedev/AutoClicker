@@ -58,12 +58,15 @@ if __name__ == "__main__":
     max_threads = 100  # Set a reasonable maximum number of threads
     print(f"Maximum number of threads you can set: {max_threads}")
 
-    num_threads = int(input("Enter the number of threads: "))
+    num_threads = input("Enter the number of threads (default 20): ")
+    num_threads = int(num_threads) if num_threads else 20
     if num_threads > max_threads:
         print(f"Number of threads exceeds the maximum limit of {max_threads}. Setting to {max_threads}.")
         num_threads = max_threads
 
-    run_time = int(input("Enter the duration of the script in seconds (0 for infinite): "))
+    run_time = input("Enter the duration of the script in seconds (0 for infinite, default 0): ")
+    run_time = int(run_time) if run_time else 0
+
     threads = start_threads(run_time, num_threads)  # Run for seconds in multiple threads
 
     # Set up a keyboard shortcut to stop all threads
