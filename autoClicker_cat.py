@@ -55,8 +55,15 @@ def stop_all_threads():
 
 # Example usage
 if __name__ == "__main__":
-    num_threads = 2  # Customize the number of threads
-    run_time = 0  # Customize the duration of the script in seconds (0 for infinite)
+    max_threads = 100  # Set a reasonable maximum number of threads
+    print(f"Maximum number of threads you can set: {max_threads}")
+
+    num_threads = int(input("Enter the number of threads: "))
+    if num_threads > max_threads:
+        print(f"Number of threads exceeds the maximum limit of {max_threads}. Setting to {max_threads}.")
+        num_threads = max_threads
+
+    run_time = int(input("Enter the duration of the script in seconds (0 for infinite): "))
     threads = start_threads(run_time, num_threads)  # Run for seconds in multiple threads
 
     # Set up a keyboard shortcut to stop all threads
@@ -64,3 +71,7 @@ if __name__ == "__main__":
 
     for thread in threads:
         thread.join()  # Wait for all threads to complete
+
+    # Show key press count when the run time finishes
+    if run_time != 0:
+        logging.info(f"Total key presses: {key_press_count}")
