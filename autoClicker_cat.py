@@ -4,6 +4,8 @@ import logging
 import pydirectinput
 import threading
 import keyboard
+import tkinter as tk
+from tkinter import scrolledtext
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -45,36 +47,73 @@ def start_threads(duration, num_threads):
         thread.start()
         threads.append(thread)
     logging.debug(f"Started {num_threads} threads with run time: {'infinite' if duration == 0 else duration} seconds ...")
-    return threads
+    for thread in threads:
+        thread.join()
+    if duration != 0:
+        logging.info(f"Total key presses: {key_press_count}")
 
 def stop_all_threads():
     global stop_threads
     stop_threads = True
-    logging.error("\033[91mStop Hot Key Detected\033[0m")  # Log in red color
+    logging.error("\033----- Stop -----\033")  # Log in red color
     logging.info(f"Total key presses: {key_press_count}")
 
-# Example usage
-if __name__ == "__main__":
-    max_threads = 100  # Set a reasonable maximum number of threads
-    print(f"Maximum number of threads you can set: {max_threads}")
+def start():
+    global stop_threads
+    stop_threads = False
+    num_threads = int(num_threads_entry.get())
+    run_time = int(run_time_entry.get())
+    start_button.config(state=tk.DISABLED)
+    stop_button.config(state=tk.NORMAL)
+    num_threads_entry.config(state=tk.DISABLED)
+    run_time_entry.config(state=tk.DISABLED)
+    threading.Thread(target=start_threads, args=(run_time, num_threads)).start()
 
-    num_threads = input("Enter the number of threads (default 20): ")
-    num_threads = int(num_threads) if num_threads else 20
-    if num_threads > max_threads:
-        print(f"Number of threads exceeds the maximum limit of {max_threads}. Setting to {max_threads}.")
-        num_threads = max_threads
+def stop():
+    stop_all_threads()
+    start_button.config(state=tk.NORMAL)
+    stop_button.config(state=tk.DISABLED)
+    num_threads_entry.config(state=tk.NORMAL)
+    run_time_entry.config(state=tk.NORMAL)
 
-    run_time = input("Enter the duration of the script in seconds (0 for infinite, default 0): ")
-    run_time = int(run_time) if run_time else 0
+# Set up the UI
+root = tk.Tk()
+root.title("Auto Clicker")
 
-    threads = start_threads(run_time, num_threads)  # Run for seconds in multiple threads
+tk.Label(root, text="Number of Threads:").grid(row=0, column=0)
+num_threads_entry = tk.Entry(root)
+num_threads_entry.grid(row=0, column=1)
+num_threads_entry.insert(0, "20")
 
-    # Set up a keyboard shortcut to stop all threads
-    keyboard.add_hotkey('esc', stop_all_threads)
+tk.Label(root, text="Run Time (seconds):").grid(row=1, column=0)
+run_time_entry = tk.Entry(root)
+run_time_entry.grid(row=1, column=1)
+run_time_entry.insert(0, "0")
 
-    for thread in threads:
-        thread.join()  # Wait for all threads to complete
+start_button = tk.Button(root, text="Start", command=start, width=15, height=2)
+start_button.grid(row=2, column=0)
 
-    # Show key press count when the run time finishes
-    if run_time != 0:
-        logging.info(f"Total key presses: {key_press_count}")
+stop_button = tk.Button(root, text="Stop", command=stop, state=tk.DISABLED, bg="lightcoral", width=15, height=2)
+stop_button.grid(row=2, column=1)
+
+log_viewer = scrolledtext.ScrolledText(root, width=50, height=10)
+log_viewer.grid(row=3, column=0, columnspan=2)
+
+class TextHandler(logging.Handler):
+    def __init__(self, widget):
+        logging.Handler.__init__(self)
+        self.widget = widget
+
+    def emit(self, record):
+        msg = self.format(record)
+        def append():
+            self.widget.configure(state='normal')
+            self.widget.insert(tk.END, msg + '\n')
+            self.widget.configure(state='disabled')
+            self.widget.yview(tk.END)
+        self.widget.after(0, append)
+
+text_handler = TextHandler(log_viewer)
+logging.getLogger().addHandler(text_handler)
+
+root.mainloop()
