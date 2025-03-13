@@ -1,14 +1,20 @@
+import logging
+
+# Configure logging to include timestamp
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 from time import sleep, time
 import random
-import logging
 import pydirectinput
 import threading
 import keyboard
 import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import StringVar
-
-logging.basicConfig(level=logging.DEBUG)
 
 stop_threads = False
 key_press_count = 0
@@ -52,11 +58,11 @@ def start_threads(duration, num_threads):
         thread = threading.Thread(target=run_for_duration, args=(duration,))
         thread.start()
         threads.append(thread)
-    logging.debug(f"Started {num_threads} threads with run time: {'infinite' if duration == 0 else duration} seconds ...")
+    logging.debug(f"Started {num_threads} threads for random key presses")
     for thread in threads:
         thread.join()
     if duration != 0:
-        logging.info(f"Total key presses: {key_press_count}")
+        stop()
 
 def stop_all_threads():
     global stop_threads
@@ -129,6 +135,7 @@ class TextHandler(logging.Handler):
     def __init__(self, widget):
         logging.Handler.__init__(self)
         self.widget = widget
+        self.setFormatter(logging.Formatter('%(asctime)s  %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
 
     def emit(self, record):
         msg = self.format(record)
