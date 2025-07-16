@@ -13,7 +13,7 @@ import pydirectinput
 import threading
 import keyboard
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, ttk
 from tkinter import StringVar
 
 stop_threads = False
@@ -23,6 +23,19 @@ lock = threading.Lock()
 
 root = tk.Tk()
 root.title("Auto Clicker")
+
+# Create a Tab Control
+tab_control = ttk.Notebook(root)
+
+# Create a tab for the auto clicker
+auto_clicker_tab = ttk.Frame(tab_control)
+tab_control.add(auto_clicker_tab, text='Random Key Presses')
+
+# Create another tab for future use
+new_tab = ttk.Frame(tab_control)
+tab_control.add(new_tab, text='Coming Soon')
+
+tab_control.pack(expand=1, fill="both")
 
 run_time_var = StringVar()
 
@@ -112,23 +125,23 @@ def stop():
     run_time_entry.config(state=tk.NORMAL)
     run_time_var.set(str(start_run_time))
 
-tk.Label(root, text="Number of Threads:").grid(row=0, column=0)
-num_threads_entry = tk.Entry(root)
+tk.Label(auto_clicker_tab, text="Number of Threads:").grid(row=0, column=0)
+num_threads_entry = tk.Entry(auto_clicker_tab)
 num_threads_entry.grid(row=0, column=1)
 num_threads_entry.insert(0, "1")
 
-tk.Label(root, text="Run Time (seconds):").grid(row=1, column=0)
-run_time_entry = tk.Entry(root, textvariable=run_time_var)
+tk.Label(auto_clicker_tab, text="Run Time (seconds):").grid(row=1, column=0)
+run_time_entry = tk.Entry(auto_clicker_tab, textvariable=run_time_var)
 run_time_entry.grid(row=1, column=1)
 run_time_var.set("0")
 
-start_button = tk.Button(root, text="Start", command=start, width=15, height=2)
+start_button = tk.Button(auto_clicker_tab, text="Start", command=start, width=15, height=2)
 start_button.grid(row=2, column=0)
 
-stop_button = tk.Button(root, text="Stop", command=stop, state=tk.DISABLED, bg="lightcoral", width=15, height=2)
+stop_button = tk.Button(auto_clicker_tab, text="Stop", command=stop, state=tk.DISABLED, bg="lightcoral", width=15, height=2)
 stop_button.grid(row=2, column=1)
 
-log_viewer = scrolledtext.ScrolledText(root, width=50, height=10)
+log_viewer = scrolledtext.ScrolledText(auto_clicker_tab, width=50, height=10)
 log_viewer.grid(row=3, column=0, columnspan=2)
 
 class TextHandler(logging.Handler):
