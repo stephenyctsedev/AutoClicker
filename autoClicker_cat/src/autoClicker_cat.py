@@ -12,6 +12,7 @@ import random
 import pydirectinput
 import threading
 import keyboard
+import mouse
 import tkinter as tk
 from tkinter import scrolledtext, ttk
 from tkinter import StringVar
@@ -180,6 +181,8 @@ def set_mouse_clicker_ui_state(is_clicking):
     start_clicking_button.config(state=start_state)
     stop_clicking_button.config(state=stop_state)
 
+mouse_hook = None
+
 def get_mouse_position_loop():
     while get_mouse_pos_var.get():
         x, y = pydirectinput.position()
@@ -189,13 +192,24 @@ def get_mouse_position_loop():
         mouse_y_entry.insert(0, str(y))
         sleep(0.1)
 
-def toggle_get_mouse_position():
-    get_mouse_pos_var.set(not get_mouse_pos_var.get())
+def stop_getting_pos():
+    global mouse_hook
     if get_mouse_pos_var.get():
-        get_mouse_pos_button.config(text="Stop Getting Mouse Position")
+        get_mouse_pos_var.set(False)
+        get_mouse_pos_button.config(text="Get Mouse Position (Ctrl+G or Left Click to Stop)")
+        if mouse_hook:
+            mouse.unhook(mouse_hook)
+            mouse_hook = None
+
+def toggle_get_mouse_position():
+    global mouse_hook
+    if not get_mouse_pos_var.get():
+        get_mouse_pos_var.set(True)
+        get_mouse_pos_button.config(text="Stop Getting Mouse Position (Ctrl+G or Left Click)")
+        mouse_hook = mouse.on_click(stop_getting_pos)
         threading.Thread(target=get_mouse_position_loop, daemon=True).start()
     else:
-        get_mouse_pos_button.config(text="Get Mouse Position")
+        stop_getting_pos()
 
 keyboard.add_hotkey('ctrl+g', toggle_get_mouse_position)
 
