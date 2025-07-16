@@ -1,3 +1,2 @@
 pydirectinput
 keyboard
-tkinter

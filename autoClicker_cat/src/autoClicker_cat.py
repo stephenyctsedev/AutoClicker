@@ -33,11 +33,48 @@ tab_control.add(auto_clicker_tab, text='Random Key Presses')
 
 # Create another tab for future use
 new_tab = ttk.Frame(tab_control)
-tab_control.add(new_tab, text='Coming Soon')
+tab_control.add(new_tab, text='Mouse Position Clicker')
 
 tab_control.pack(expand=1, fill="both")
 
 run_time_var = StringVar()
+
+# --- Mouse Position Clicker Tab ---
+
+# Mouse position
+tk.Label(new_tab, text="Mouse X:").grid(row=0, column=0, padx=5, pady=5)
+mouse_x_entry = tk.Entry(new_tab)
+mouse_x_entry.grid(row=0, column=1, padx=5, pady=5)
+
+tk.Label(new_tab, text="Mouse Y:").grid(row=0, column=2, padx=5, pady=5)
+mouse_y_entry = tk.Entry(new_tab)
+mouse_y_entry.grid(row=0, column=3, padx=5, pady=5)
+
+get_mouse_pos_var = tk.BooleanVar(value=False)
+get_mouse_pos_button = tk.Button(new_tab, text="Get Mouse Position")
+get_mouse_pos_button.grid(row=1, column=0, columnspan=4, pady=10)
+
+# Click interval
+tk.Label(new_tab, text="Click Interval (sec):").grid(row=2, column=0, padx=5, pady=5)
+interval_entry = tk.Entry(new_tab)
+interval_entry.grid(row=2, column=1, padx=5, pady=5)
+interval_entry.insert(0, "1")
+
+# Start/Stop buttons
+start_clicking_button = tk.Button(new_tab, text="Start Clicking", bg="lightgreen")
+start_clicking_button.grid(row=3, column=0, columnspan=2, pady=10)
+
+stop_clicking_button = tk.Button(new_tab, text="Stop Clicking", bg="lightcoral", state=tk.DISABLED)
+stop_clicking_button.grid(row=3, column=2, columnspan=2, pady=10)
+
+# Click count display
+click_count_var = tk.StringVar(value="Clicks: 0")
+click_count_label = tk.Label(new_tab, textvariable=click_count_var)
+click_count_label.grid(row=4, column=0, columnspan=4, pady=5)
+
+# Log viewer for mouse clicker
+mouse_log_viewer = scrolledtext.ScrolledText(new_tab, width=50, height=10)
+mouse_log_viewer.grid(row=5, column=0, columnspan=4, pady=10)
 
 def random_key_press():
     global key_press_count
@@ -125,6 +162,107 @@ def stop():
     run_time_entry.config(state=tk.NORMAL)
     run_time_var.set(str(start_run_time))
 
+# --- Mouse Position Clicker Logic ---
+
+clicking_thread = None
+stop_clicking_flag = threading.Event()
+click_count = 0
+
+def set_mouse_clicker_ui_state(is_clicking):
+    state = tk.DISABLED if is_clicking else tk.NORMAL
+    start_state = tk.DISABLED if is_clicking else tk.NORMAL
+    stop_state = tk.NORMAL if is_clicking else tk.DISABLED
+
+    mouse_x_entry.config(state=state)
+    mouse_y_entry.config(state=state)
+    get_mouse_pos_button.config(state=state)
+    interval_entry.config(state=state)
+    start_clicking_button.config(state=start_state)
+    stop_clicking_button.config(state=stop_state)
+
+def get_mouse_position_loop():
+    while get_mouse_pos_var.get():
+        x, y = pydirectinput.position()
+        mouse_x_entry.delete(0, tk.END)
+        mouse_x_entry.insert(0, str(x))
+        mouse_y_entry.delete(0, tk.END)
+        mouse_y_entry.insert(0, str(y))
+        sleep(0.1)
+
+def toggle_get_mouse_position():
+    get_mouse_pos_var.set(not get_mouse_pos_var.get())
+    if get_mouse_pos_var.get():
+        get_mouse_pos_button.config(text="Stop Getting Mouse Position")
+        threading.Thread(target=get_mouse_position_loop, daemon=True).start()
+    else:
+        get_mouse_pos_button.config(text="Get Mouse Position")
+
+keyboard.add_hotkey('ctrl+g', toggle_get_mouse_position)
+
+def emergency_stop():
+    """Stops all running processes in both tabs. Can be called from a hotkey."""
+    global stop_threads
+    logging.info("Emergency stop hotkey pressed. Stopping all actions.")
+    stop_threads = True # For the first tab
+    stop_clicking_flag.set() # For the second tab
+
+keyboard.add_hotkey('F12', emergency_stop)
+
+
+get_mouse_pos_button.config(command=toggle_get_mouse_position)
+
+def click_loop():
+    global click_count
+    try:
+        interval = float(interval_entry.get())
+        x = int(mouse_x_entry.get())
+        y = int(mouse_y_entry.get())
+
+        while not stop_clicking_flag.is_set():
+            pydirectinput.click(x, y)
+            with lock:
+                click_count += 1
+            
+            click_count_var.set(f"Clicks: {click_count}")
+            stop_clicking_flag.wait(interval)
+
+    except ValueError:
+        logging.error("Invalid input for interval, X or Y coordinate.")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+    finally:
+        root.after(0, set_mouse_clicker_ui_state, False)
+
+def start_clicking():
+    global click_count
+    try:
+        x = int(mouse_x_entry.get())
+        y = int(mouse_y_entry.get())
+    except ValueError:
+        logging.error("Invalid X or Y coordinate. Please enter a number.")
+        return
+
+    logging.info("Starting clicks in 5 seconds. Please focus your target window.")
+    root.after(100, lambda: threading.Thread(target=_start_clicking_thread, daemon=True).start())
+
+def _start_clicking_thread():
+    sleep(5)
+    click_count = 0
+    click_count_var.set("Clicks: 0")
+    stop_clicking_flag.clear()
+    set_mouse_clicker_ui_state(True)
+    global clicking_thread
+    clicking_thread = threading.Thread(target=click_loop, daemon=True)
+    clicking_thread.start()
+
+def stop_clicking():
+    stop_clicking_flag.set()
+    if clicking_thread:
+        clicking_thread.join(timeout=1) # Wait for the thread to finish
+
+start_clicking_button.config(command=start_clicking)
+stop_clicking_button.config(command=stop_clicking)
+
 tk.Label(auto_clicker_tab, text="Number of Threads:").grid(row=0, column=0)
 num_threads_entry = tk.Entry(auto_clicker_tab)
 num_threads_entry.grid(row=0, column=1)
@@ -161,5 +299,8 @@ class TextHandler(logging.Handler):
 
 text_handler = TextHandler(log_viewer)
 logging.getLogger().addHandler(text_handler)
+
+mouse_text_handler = TextHandler(mouse_log_viewer)
+logging.getLogger().addHandler(mouse_text_handler)
 
 root.mainloop()
