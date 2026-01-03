@@ -15,7 +15,7 @@ import keyboard
 import mouse
 import tkinter as tk
 from tkinter import scrolledtext, ttk
-from tkinter import StringVar
+from tkinter import StringVar, messagebox
 
 stop_threads = False
 key_press_count = 0
@@ -79,8 +79,7 @@ mouse_log_viewer.grid(row=5, column=0, columnspan=4, pady=10)
 
 def random_key_press():
     global key_press_count
-    keys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+    keys = ['a', 's']
     key = random.choice(keys)
     pydirectinput.press(key)
     with lock:
@@ -145,7 +144,24 @@ def start():
     global stop_threads
     global start_run_time
     stop_threads = False
-    num_threads = int(num_threads_entry.get())
+    try:
+        num_threads = int(num_threads_entry.get())
+    except ValueError:
+        messagebox.showerror("Invalid Input", "Please enter a valid number for threads.")
+        return
+    
+    # Check if thread count is too high
+    MAX_THREADS = 100
+    if num_threads > MAX_THREADS:
+        messagebox.showwarning(
+            "Too Many Threads",
+            f"Warning: You have entered {num_threads} threads.\n\n"
+            f"This exceeds the recommended maximum of {MAX_THREADS} threads.\n"
+            "Too many threads can cause system performance issues and may freeze your computer.\n\n"
+            "Please reduce the number of threads and try again."
+        )
+        return
+    
     run_time = int(run_time_entry.get())
     start_run_time = run_time
     start_button.config(state=tk.DISABLED)
@@ -225,6 +241,58 @@ keyboard.add_hotkey('F12', emergency_stop)
 
 get_mouse_pos_button.config(command=toggle_get_mouse_position)
 
+import ctypes
+from ctypes import wintypes
+
+# Define necessary structures and constants for SendInput
+PUL = ctypes.POINTER(ctypes.c_ulong)
+class KeyBdInput(ctypes.Structure):
+    _fields_ = [("wVk", wintypes.WORD),
+                ("wScan", wintypes.WORD),
+                ("dwFlags", wintypes.DWORD),
+                ("time", wintypes.DWORD),
+                ("dwExtraInfo", PUL)]
+
+class HardwareInput(ctypes.Structure):
+    _fields_ = [("uMsg", wintypes.DWORD),
+                ("wParamL", wintypes.WORD),
+                ("wParamH", wintypes.WORD)]
+
+class MouseInput(ctypes.Structure):
+    _fields_ = [("dx", wintypes.LONG),
+                ("dy", wintypes.LONG),
+                ("mouseData", wintypes.DWORD),
+                ("dwFlags", wintypes.DWORD),
+                ("time", wintypes.DWORD),
+                ("dwExtraInfo", PUL)]
+
+class Input_I(ctypes.Union):
+    _fields_ = [("ki", KeyBdInput),
+                ("mi", MouseInput),
+                ("hi", HardwareInput)]
+
+class Input(ctypes.Structure):
+    _fields_ = [("type", wintypes.DWORD),
+                ("ii", Input_I)]
+
+def windll_click(x, y):
+    # Move mouse
+    ctypes.windll.user32.SetCursorPos(x, y)
+
+    # Left down
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    ii_.mi = MouseInput(0, 0, 0, 0x0002, 0, ctypes.pointer(extra))
+    x = Input(ctypes.c_ulong(0), ii_)
+    ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+
+    # Left up
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    ii_.mi = MouseInput(0, 0, 0, 0x0004, 0, ctypes.pointer(extra))
+    x = Input(ctypes.c_ulong(0), ii_)
+    ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+
 def click_loop():
     global click_count
     try:
@@ -233,7 +301,7 @@ def click_loop():
         y = int(mouse_y_entry.get())
 
         while not stop_clicking_flag.is_set():
-            pydirectinput.click(x, y)
+            windll_click(x, y)
             with lock:
                 click_count += 1
             
